@@ -1,0 +1,45 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+  <h1>My Profile</h1>
+
+  <div class="grid-2">
+    <section class="section">
+      <h2>Update Profile</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="profile_submit" value="1" />
+        {% for field in profile_form %}
+          <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}
+              <div class="error-box">{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <button type="submit">Save Profile</button>
+      </form>
+    </section>
+
+    <section class="section">
+      <h2>Change Password</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="password_submit" value="1" />
+        {% for field in password_form %}
+          <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}
+              <div class="error-box">{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <button type="submit">Update Password</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

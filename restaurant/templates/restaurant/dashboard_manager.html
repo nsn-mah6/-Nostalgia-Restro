@@ -1,0 +1,14 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Manager Dashboard{% endblock %}
+
+{% block content %}
+  <h1>Manager Dashboard</h1>
+  <p class="muted">Monitor performance and team operations.</p>
+  <div class="cards">
+    <div class="card"><h3>Total Revenue</h3><div class="value">${{ total_revenue }}</div></div>
+    <div class="card"><h3>Open Orders</h3><div class="value">{{ total_orders }}</div></div>
+    <div class="card"><h3>Low Stock</h3><div class="value">{{ low_stock }}</div></div>
+    <div class="card"><h3>Forecast</h3><div class="value">${{ prediction.0 }}</div></div>
+  </div>
+{% endblock %}

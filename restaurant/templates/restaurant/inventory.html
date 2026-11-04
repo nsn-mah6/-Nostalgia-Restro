@@ -1,0 +1,35 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Inventory{% endblock %}
+
+{% block content %}
+  <h1>Inventory Management</h1>
+  <p class="muted">Track stock levels and reorder points for all ingredients.</p>
+
+  <div class="section">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Ingredient</th>
+          <th>Stock</th>
+          <th>Reorder Level</th>
+          <th>Unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in inventory %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>{% if item.stock <= item.reorder_level %}<span class="warning-box">{{ item.stock }}</span>{% else %}{{ item.stock }}{% endif %}</td>
+            <td>{{ item.reorder_level }}</td>
+            <td>{{ item.unit }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="muted">No inventory items available.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

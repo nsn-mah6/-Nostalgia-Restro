@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#120d0b" />
+    <title>{% block title %}Nostalgia Restaurant | Dining Management{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'restaurant/styles.css' %}" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="header-title container">
+          <div class="brand">
+            <div class="brand-logo">
+              <img src="{% static 'restaurant/logo.svg' %}" alt="Nostalgia Restaurant logo" />
+            </div>
+            <div class="brand-text">
+              <h2>Nostalgia Restaurant</h2>
+              <small>RMS • Dining Concierge</small>
+            </div>
+          </div>
+
+          <nav class="nav">
+            {% if user.is_authenticated %}
+              <a href="{% url 'dashboard' %}">Dashboard</a>
+              <a href="{% url 'orders' %}">Orders</a>
+              <a href="{% url 'kitchen' %}">Kitchen</a>
+              <a href="{% url 'inventory' %}">Inventory</a>
+              <a href="{% url 'reports' %}">Reports</a>
+              <a href="{% url 'profile' %}">Profile</a>
+              {% if user.role == 'admin' or user.role == 'manager' %}
+                <a href="{% url 'staff_management' %}">Staff Management</a>
+              {% endif %}
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit">Logout</button>
+              </form>
+            {% else %}
+              <a href="{% url 'login' %}">Login</a>
+            {% endif %}
+          </nav>
+        </div>
+      </header>
+
+      <main class="container">
+        {% if user.is_authenticated %}
+          {% now "G" as current_hour %}
+          <div class="welcome-banner">
+            {% if current_hour|add:"0" < 12 %}
+              <span class="welcome-kicker">Good morning,</span>
+            {% elif current_hour|add:"0" < 18 %}
+              <span class="welcome-kicker">Good afternoon,</span>
+            {% else %}
+              <span class="welcome-kicker">Good evening,</span>
+            {% endif %}
+            <span>{{ user.get_full_name|default:user.username }}</span>
+          </div>
+        {% endif %}
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="warning-box">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+        <div class="page-frame">
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

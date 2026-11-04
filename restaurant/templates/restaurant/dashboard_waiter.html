@@ -1,0 +1,13 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Waiter Dashboard{% endblock %}
+
+{% block content %}
+  <h1>Waiter Dashboard</h1>
+  <p class="muted">Quickly place orders and keep service moving.</p>
+  <div class="cards">
+    <div class="card"><h3>Pending Orders</h3><div class="value">{{ pending_orders }}</div></div>
+    <div class="card"><h3>Sales Today</h3><div class="value">${{ total_revenue }}</div></div>
+    <div class="card"><h3>Orders</h3><div class="value">{{ total_orders }}</div></div>
+  </div>
+{% endblock %}

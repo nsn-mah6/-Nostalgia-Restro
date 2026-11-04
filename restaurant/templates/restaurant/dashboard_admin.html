@@ -1,0 +1,18 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+  <h1>Admin Dashboard</h1>
+  <p class="muted">Full restaurant oversight and staff control.</p>
+  <div class="cards">
+    <div class="card"><h3>Total Revenue</h3><div class="value">${{ total_revenue }}</div></div>
+    <div class="card"><h3>Pending Orders</h3><div class="value">{{ pending_orders }}</div></div>
+    <div class="card"><h3>Total Orders</h3><div class="value">{{ total_orders }}</div></div>
+    <div class="card"><h3>Low Stock Alerts</h3><div class="value">{{ low_stock }}</div></div>
+  </div>
+  <div class="section">
+    <h2>Overview</h2>
+    <p>Use the staff management, inventory, kitchen, and sales tools to control all restaurant operations.</p>
+  </div>
+{% endblock %}

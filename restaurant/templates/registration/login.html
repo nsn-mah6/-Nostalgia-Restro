@@ -1,0 +1,32 @@
+{% extends 'restaurant/base.html' %}
+{% load static %}
+
+{% block title %}Login | Nostalgia Restaurant{% endblock %}
+
+{% block content %}
+  <div class="auth-panel">
+    <div style="text-align:center; margin-bottom: 18px;">
+      <img src="{% static 'restaurant/logo.svg' %}" alt="Nostalgia Restaurant" style="width:84px; height:84px; margin-bottom: 10px;" />
+      <h1 style="margin-bottom: 8px;">Welcome Back</h1>
+      <p style="margin: 0; color: var(--muted);">Sign in to manage the dining floor, kitchen, and daily service.</p>
+    </div>
+
+    {% if form.errors %}
+      <div class="error-box">Incorrect username or password. Please try again.</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_username">Username</label>
+        {{ form.username }}
+      </div>
+      <div class="field">
+        <label for="id_password">Password</label>
+        {{ form.password }}
+      </div>
+      <button type="submit" style="width:100%;">Login</button>
+      <p style="margin-top: 20px; text-align:center;"><a href="{% url 'password_reset' %}">Forgot password?</a></p>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Process Payment{% endblock %}
+
+{% block content %}
+  <h1>Process Payment</h1>
+
+  {% if error %}
+    <div class="error-box">{{ error }}</div>
+  {% endif %}
+
+  <div class="section">
+    <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+    <p><strong>Order Type:</strong> {{ order.get_order_type_display }}</p>
+    <p><strong>Amount Due:</strong> ${{ order.total_amount }}</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="payment_method">Payment Method</label>
+        <select id="payment_method" name="payment_method">
+          <option value="cash">Cash</option>
+          <option value="qr">QR Payment</option>
+          <option value="card">Card</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="amount">Amount Received</label>
+        <input type="number" id="amount" name="amount" step="0.01" min="0" value="{{ order.total_amount }}" />
+      </div>
+
+      <div class="inline-buttons">
+        <button type="submit">Confirm Payment</button>
+        <button type="button" class="secondary" onclick="window.location.href='{% url 'orders' %}'">Back to Orders</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

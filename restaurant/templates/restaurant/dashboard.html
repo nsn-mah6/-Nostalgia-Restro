@@ -1,0 +1,68 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <h1>Restaurant Dashboard</h1>
+  <p class="muted">Monitor orders, stock levels, sales, and future demand.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Total Revenue</h3>
+      <div class="value">${{ total_revenue }}</div>
+    </div>
+    <div class="card">
+      <h3>Pending Orders</h3>
+      <div class="value">{{ pending_orders }}</div>
+    </div>
+    <div class="card">
+      <h3>Total Orders</h3>
+      <div class="value">{{ total_orders }}</div>
+    </div>
+    <div class="card">
+      <h3>Low Stock Items</h3>
+      <div class="value">{{ low_stock }}</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <section class="section">
+      <h2>Recent Orders</h2>
+      {% if recent_orders %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent_orders %}
+              <tr>
+                <td>#{{ order.pk }}</td>
+                <td>{{ order.customer_name }}</td>
+                <td><span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span></td>
+                <td>${{ order.total_amount }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No orders have been placed yet.</p>
+      {% endif %}
+    </section>
+
+    <section class="section">
+      <h2>AI Sales Forecast</h2>
+      <ul class="summary-list">
+        {% for value in prediction %}
+          <li>Day {{ forloop.counter }}: ${{ value }}</li>
+        {% empty %}
+          <li>No sales data available for forecasting.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+{% endblock %}

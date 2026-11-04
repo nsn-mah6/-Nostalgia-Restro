@@ -1,0 +1,42 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Kitchen Orders{% endblock %}
+
+{% block content %}
+  <h1>Kitchen Queue</h1>
+  <p class="muted">Track each order from pending to preparing to ready.</p>
+
+  {% if orders %}
+    {% for order in orders %}
+      <div class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <div>
+            <strong>Order #{{ order.pk }}</strong>
+            <span class="muted"> • {{ order.customer_name }} • {{ order.get_order_type_display }}</span>
+          </div>
+          <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+        </div>
+
+        <ul style="padding-left: 18px; margin: 16px 0;">
+          {% for item in order.items.all %}
+            <li>{{ item.menu_item.name }} x {{ item.quantity }} — ${{ item.subtotal }}</li>
+          {% endfor %}
+        </ul>
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="order_id" value="{{ order.pk }}" />
+          <div class="inline-buttons">
+            <button type="submit" name="status" value="pending">Set Pending</button>
+            <button type="submit" name="status" value="preparing" class="secondary">Set Preparing</button>
+            <button type="submit" name="status" value="ready" class="secondary">Set Ready</button>
+          </div>
+        </form>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="section">
+      <p class="muted">No orders are currently in the kitchen queue.</p>
+    </div>
+  {% endif %}
+{% endblock %}
