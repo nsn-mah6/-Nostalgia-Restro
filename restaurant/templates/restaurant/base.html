@@ -7,67 +7,77 @@
     <meta name="theme-color" content="#120d0b" />
     <title>{% block title %}Nostalgia Restaurant | Dining Management{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'restaurant/styles.css' %}" />
+    {% if dashboard_mode == 'admin' %}
+      <style>
+        body { background: #edf1f3 !important; color: #1a2433; }
+        .topbar, .welcome-banner { display: none !important; }
+        .page-frame {
+          background: transparent !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        main.container {
+          max-width: none !important;
+          padding: 0 !important;
+        }
+      </style>
+    {% endif %}
   </head>
-  <body>
+  <body class="{% if user.is_authenticated %}dashboard-shell{% endif %}{% block body_attrs %}{% endblock %}">
     <div class="app-shell">
-      <header class="topbar">
-        <div class="header-title container">
-          <div class="brand">
-            <div class="brand-logo">
+      {% if user.is_authenticated %}
+        <aside class="dashboard-sidebar">
+          <div class="sidebar-brand">
+            <div class="brand-mark">
               <img src="{% static 'restaurant/logo.svg' %}" alt="Nostalgia Restaurant logo" />
             </div>
-            <div class="brand-text">
-              <h2>Nostalgia Restaurant</h2>
-              <small>RMS • Dining Concierge</small>
-            </div>
+            <div class="brand-name">Nostalgia Restro</div>
           </div>
 
-          <nav class="nav">
-            {% if user.is_authenticated %}
-              <a href="{% url 'dashboard' %}">Dashboard</a>
-              <a href="{% url 'orders' %}">Orders</a>
-              <a href="{% url 'kitchen' %}">Kitchen</a>
-              <a href="{% url 'inventory' %}">Inventory</a>
-              <a href="{% url 'reports' %}">Reports</a>
-              <a href="{% url 'profile' %}">Profile</a>
-              {% if user.role == 'admin' or user.role == 'manager' %}
-                <a href="{% url 'staff_management' %}">Staff Management</a>
-              {% endif %}
-              <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit">Logout</button>
-              </form>
-            {% else %}
-              <a href="{% url 'login' %}">Login</a>
-            {% endif %}
+          <nav class="sidebar-nav" aria-label="Sidebar navigation">
+            <a class="nav-item {% if request.path == '/' or request.path == '/dashboard/' %}active{% endif %}" href="{% url 'dashboard' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5L12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1v-7.5Z"/></svg></span>Dashboard</a>
+            <a class="nav-item {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l4 4v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2Zm0 0v4h8V4M8 13h8M8 17h6"/></svg></span>Orders</a>
+            <a class="nav-item {% if request.path == '/kitchen/' %}active{% endif %}" href="{% url 'kitchen' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19V8m6 11V5m6 14v-8M3 19h18"/></svg></span>Kitchen</a>
+            <a class="nav-item {% if request.path == '/inventory/' %}active{% endif %}" href="{% url 'inventory' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v10H4zm2-4h12v4H6zM8 12h8"/></svg></span>Inventory</a>
+            <a class="nav-item {% if request.path == '/reports/' %}active{% endif %}" href="{% url 'reports' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18V9m7 9V5m7 13v-7M3 18h18"/></svg></span>Reports</a>
+            <a class="nav-item {% if request.path == '/staff/create/' %}active{% endif %}" href="{% url 'staff_create' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Create Staff ID</a>
+            <a class="nav-item {% if request.path == '/profile/' %}active{% endif %}" href="{% url 'profile' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 19v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span>Profile</a>
+            <form method="post" action="{% url 'logout' %}" class="sidebar-logout-form">
+              {% csrf_token %}
+              <button type="submit" class="nav-item nav-item-button"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></span>Logout</button>
+            </form>
           </nav>
-        </div>
-      </header>
+        </aside>
+      {% endif %}
 
-      <main class="container">
+      <div class="dashboard-main-panel">
         {% if user.is_authenticated %}
-          {% now "G" as current_hour %}
-          <div class="welcome-banner">
-            {% if current_hour|add:"0" < 12 %}
-              <span class="welcome-kicker">Good morning,</span>
-            {% elif current_hour|add:"0" < 18 %}
-              <span class="welcome-kicker">Good afternoon,</span>
-            {% else %}
-              <span class="welcome-kicker">Good evening,</span>
-            {% endif %}
-            <span>{{ user.get_full_name|default:user.username }}</span>
-          </div>
+          <header class="dashboard-header">
+            <form class="search-strip" role="search" method="get" action="{% url 'dashboard' %}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/></svg>
+              <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search anything..." aria-label="Search dashboard" />
+            </form>
+
+            <div class="profile-pill">
+              <div class="profile-avatar">{{ user.username|first|upper|default:'A' }}</div>
+              <div class="profile-copy"><span class="role-label">{{ user.get_full_name|default:user.username }}</span></div>
+            </div>
+          </header>
         {% endif %}
 
-        {% if messages %}
-          {% for message in messages %}
-            <div class="warning-box">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-        <div class="page-frame">
-          {% block content %}{% endblock %}
-        </div>
-      </main>
+        <main class="{% if user.is_authenticated %}dashboard-body{% else %}container{% endif %}">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="warning-box">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+          <div class="page-frame">
+            {% block content %}{% endblock %}
+          </div>
+        </main>
+      </div>
     </div>
   </body>
 </html>

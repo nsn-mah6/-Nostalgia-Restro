@@ -6,7 +6,8 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
+from django.utils import timezone
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -61,6 +62,7 @@ def role_dashboard_template(role):
 @login_required
 @role_required("admin", "manager", "waiter", "cashier", "kitchen_staff", "inventory_staff")
 def dashboard(request):
+    search_query = (request.GET.get("q") or "").strip()
     total_revenue = Payment.objects.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     pending_orders = Order.objects.filter(status="pending").count()
     total_orders = Order.objects.count()
@@ -68,6 +70,91 @@ def dashboard(request):
     recent_orders = Order.objects.prefetch_related("items__menu_item").order_by("-created_at")[:6]
     prediction = forecast_sales(7)
     template_name = role_dashboard_template(request.user.role)
+
+    if search_query:
+        recent_orders = (
+            Order.objects.filter(
+                Q(customer_name__icontains=search_query)
+                | Q(items__menu_item__name__icontains=search_query)
+            )
+            .prefetch_related("items__menu_item")
+            .order_by("-created_at")
+            .distinct()[:6]
+        )
+
+    if request.user.role == "admin":
+        sales_data = []
+        today = timezone.now().date()
+        for offset in range(7):
+            day = today - timedelta(days=6 - offset)
+            total = (
+                Order.objects.filter(created_at__date=day).aggregate(total=Sum("total_amount"))["total"]
+                or Decimal("0")
+            )
+            sales_data.append({"label": day.strftime("%a"), "amount": float(total)})
+
+        max_sale = max((item["amount"] for item in sales_data), default=0) or 1
+        chart_points = []
+        for index, item in enumerate(sales_data):
+            x = 40 + (index * 82)
+            y = 210 - ((item["amount"] / max_sale) * 150)
+            chart_points.append({"x": x, "y": y})
+
+        chart_line = "M " + " L ".join(f"{point['x']},{point['y']}" for point in chart_points)
+        chart_fill = "M 40,230 " + " ".join(f"L {point['x']},{point['y']}" for point in chart_points) + " L 600,230 Z"
+
+        top_items = list(
+            OrderItem.objects.values("menu_item__name")
+            .annotate(total_qty=Sum("quantity"), total_revenue=Sum("subtotal"))
+            .order_by("-total_qty")[:5]
+        )
+        for item in top_items:
+            item["display_name"] = item["menu_item__name"]
+            item["revenue"] = float(item["total_revenue"] or 0)
+            item["quantity"] = int(item["total_qty"] or 0)
+
+        if search_query:
+            active_orders = list(
+                Order.objects.filter(status__in=["pending", "preparing", "ready"], customer_name__icontains=search_query)
+                .order_by("-created_at")[:4]
+            )
+            recent_payments = list(
+                Payment.objects.filter(order__customer_name__icontains=search_query)
+                .select_related("order")
+                .order_by("-paid_at")[:4]
+            )
+        else:
+            active_orders = list(Order.objects.filter(status__in=["pending", "preparing", "ready"]).order_by("-created_at")[:4])
+            recent_payments = list(
+                Payment.objects.select_related("order").order_by("-paid_at")[:4]
+            )
+        average_order_value = (total_revenue / total_orders) if total_orders else Decimal("0")
+        unique_customers = Order.objects.exclude(customer_name="Walk-in Customer").values_list("customer_name", flat=True).distinct().count()
+
+        return render(
+            request,
+            template_name,
+            {
+                "total_revenue": total_revenue,
+                "pending_orders": pending_orders,
+                "total_orders": total_orders,
+                "low_stock": low_stock,
+                "recent_orders": recent_orders,
+                "prediction": prediction,
+                "user": request.user,
+                "dashboard_mode": "admin",
+                "sales_data": sales_data,
+                "chart_line": chart_line,
+                "chart_fill": chart_fill,
+                "chart_points": chart_points,
+                "top_items": top_items,
+                "active_orders": active_orders,
+                "recent_payments": recent_payments,
+                "average_order_value": average_order_value,
+                "new_customers": unique_customers,
+                "search_query": search_query,
+            },
+        )
 
     return render(
         request,
@@ -80,6 +167,8 @@ def dashboard(request):
             "recent_orders": recent_orders,
             "prediction": prediction,
             "user": request.user,
+            "dashboard_mode": request.user.role,
+            "search_query": search_query,
         },
     )
 
@@ -325,6 +414,7 @@ def staff_management(request):
 @role_required("admin", "manager")
 def staff_create(request):
     form = StaffForm(request.POST or None)
+    redirect_target = request.GET.get("next") or request.POST.get("next") or "staff_management"
     if request.method == "POST" and form.is_valid():
         if not form.cleaned_data.get("password"):
             form.add_error("password", "Password is required for a new staff account.")
@@ -338,7 +428,7 @@ def staff_create(request):
                 target_model="CustomUser",
                 target_id=staff.pk,
             )
-            return redirect("staff_management")
+            return redirect(redirect_target)
     return render(request, "restaurant/staff_form.html", {"form": form, "title": "Create Staff Account"})
 
 

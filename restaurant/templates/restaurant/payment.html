@@ -10,9 +10,9 @@
   {% endif %}
 
   <div class="section">
-    <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+    <p><strong>Customer:</strong> <a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></p>
     <p><strong>Order Type:</strong> {{ order.get_order_type_display }}</p>
-    <p><strong>Amount Due:</strong> ${{ order.total_amount }}</p>
+    <p><strong>Amount Due:</strong> £{{ order.total_amount }}</p>
 
     <form method="post">
       {% csrf_token %}

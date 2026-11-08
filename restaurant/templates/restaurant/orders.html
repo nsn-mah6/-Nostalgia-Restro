@@ -36,7 +36,7 @@
         <div class="menu-item">
           <div>
             <strong>{{ item.name }}</strong><br />
-            <span class="muted">{{ item.category|title }} • ${{ item.price }}</span><br />
+            <span class="muted">{{ item.category|title }} • £{{ item.price }}</span><br />
             <small>{{ item.description }}</small>
           </div>
           <input type="number" name="quantity_{{ item.pk }}" min="0" value="0" aria-label="Quantity for {{ item.name }}" />

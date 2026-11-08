@@ -9,7 +9,7 @@
   <div class="cards">
     <div class="card">
       <h3>Total Revenue</h3>
-      <div class="value">${{ total_revenue }}</div>
+      <div class="value">£{{ total_revenue }}</div>
     </div>
     <div class="card">
       <h3>Pending Orders</h3>
@@ -42,9 +42,9 @@
             {% for order in recent_orders %}
               <tr>
                 <td>#{{ order.pk }}</td>
-                <td>{{ order.customer_name }}</td>
+                <td><a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></td>
                 <td><span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span></td>
-                <td>${{ order.total_amount }}</td>
+                <td>£{{ order.total_amount }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -58,7 +58,7 @@
       <h2>AI Sales Forecast</h2>
       <ul class="summary-list">
         {% for value in prediction %}
-          <li>Day {{ forloop.counter }}: ${{ value }}</li>
+          <li>Day {{ forloop.counter }}: £{{ value }}</li>
         {% empty %}
           <li>No sales data available for forecasting.</li>
         {% endfor %}

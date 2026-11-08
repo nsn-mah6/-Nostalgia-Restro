@@ -1,18 +1,146 @@
 {% extends 'restaurant/base.html' %}
+{% load static %}
 
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-  <h1>Admin Dashboard</h1>
-  <p class="muted">Full restaurant oversight and staff control.</p>
-  <div class="cards">
-    <div class="card"><h3>Total Revenue</h3><div class="value">${{ total_revenue }}</div></div>
-    <div class="card"><h3>Pending Orders</h3><div class="value">{{ pending_orders }}</div></div>
-    <div class="card"><h3>Total Orders</h3><div class="value">{{ total_orders }}</div></div>
-    <div class="card"><h3>Low Stock Alerts</h3><div class="value">{{ low_stock }}</div></div>
-  </div>
-  <div class="section">
-    <h2>Overview</h2>
-    <p>Use the staff management, inventory, kitchen, and sales tools to control all restaurant operations.</p>
-  </div>
+  <main class="dashboard-body">
+        <div class="dashboard-topline">
+          {% now "G" as current_hour %}
+          <h1>
+            {% if current_hour|add:"0" < 12 %}
+              Good morning,
+            {% elif current_hour|add:"0" < 18 %}
+              Good afternoon,
+            {% else %}
+              Good evening,
+            {% endif %}
+            {{ user.get_full_name|default:user.username }} <span>👋</span>
+          </h1>
+          <button class="date-pill" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+            {% now "d M Y" %}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+          </button>
+        </div>
+
+        <p class="subtitle">Here's what's happening with your restaurant today.</p>
+
+        <section class="stats-grid" aria-label="Sales summary">
+          <article class="stat-card">
+            <div class="card-head"><span>Total Sales</span><span class="mini-badge positive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l6-6 4 4 6-8"/><path d="M18 5h2v2"/></svg></span></div>
+            <div class="stat-number">£ {{ total_revenue|floatformat:0 }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong>↑ 23.5%</strong></div>
+          </article>
+
+          <article class="stat-card">
+            <div class="card-head"><span>Orders</span><span class="mini-badge green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7Zm2-2h8l1 3H7l1-3Z"/></svg></span></div>
+            <div class="stat-number">{{ total_orders }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 18.2%</strong></div>
+          </article>
+
+          <article class="stat-card">
+            <div class="card-head"><span>Average Order Value</span><span class="mini-badge teal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l1 12H6L7 8Zm3-3h4a2 2 0 0 1 2 2v1H8V7a2 2 0 0 1 2-2Z"/></svg></span></div>
+            <div class="stat-number">£ {{ average_order_value|floatformat:0 }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 12.4%</strong></div>
+          </article>
+
+          <article class="stat-card">
+            <div class="card-head"><span>New Customers</span><span class="mini-badge amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-1a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v1M9 9a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"/></svg></span></div>
+            <div class="stat-number">{{ new_customers }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 15.7%</strong></div>
+          </article>
+        </section>
+
+        <section class="analytics-grid">
+          <article class="panel sales-panel">
+            <div class="panel-head"><h2>Sales Overview</h2><button type="button" class="dropdown-button">This Week</button></div>
+            <div class="sales-chart" aria-label="Sales trend chart">
+              <div class="y-axis-labels"><span>£ 60k</span><span>£ 45k</span><span>£ 30k</span><span>£ 15k</span><span>£ 0</span></div>
+              <svg viewBox="0 0 620 260" preserveAspectRatio="none" role="img" aria-label="Weekly sales chart">
+                <defs>
+                  <linearGradient id="salesFill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#67d9d9" stop-opacity="0.42"/>
+                    <stop offset="100%" stop-color="#67d9d9" stop-opacity="0.06"/>
+                  </linearGradient>
+                </defs>
+                <g class="chart-grid-lines">
+                  <line x1="40" x2="590" y1="30" y2="30"/>
+                  <line x1="40" x2="590" y1="80" y2="80"/>
+                  <line x1="40" x2="590" y1="130" y2="130"/>
+                  <line x1="40" x2="590" y1="180" y2="180"/>
+                  <line x1="40" x2="590" y1="230" y2="230"/>
+                </g>
+                <path d="{{ chart_fill }}" fill="url(#salesFill)"/>
+                <path d="{{ chart_line }}" fill="none" stroke="#3dc5c3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                <g class="chart-points">
+                  {% for point in chart_points %}
+                    <circle cx="{{ point.x }}" cy="{{ point.y }}" r="5"/>
+                  {% endfor %}
+                </g>
+              </svg>
+              <div class="x-axis-labels">
+                {% for point in sales_data %}<span>{{ point.label }}</span>{% endfor %}
+              </div>
+            </div>
+          </article>
+
+          <article class="panel top-items-panel">
+            <div class="panel-head"><h2>Top Selling Items</h2><a href="#">View All</a></div>
+            <ul class="top-items">
+              {% for item in top_items %}
+                <li>
+                  <div class="food-name">
+                    <span class="food-thumb {% cycle 'pizza' 'biryani' 'burger' 'pasta' 'dosa' %}"></span>
+                    <span>{{ item.display_name }}</span>
+                  </div>
+                  <div class="food-metrics"><span>{{ item.quantity }}</span><strong>£ {{ item.revenue|floatformat:0 }}</strong></div>
+                </li>
+              {% empty %}
+                <li><div class="food-name"><span>No sales yet</span></div></li>
+              {% endfor %}
+            </ul>
+          </article>
+        </section>
+
+        <section class="bottom-grid">
+          <article class="panel orders-panel">
+            <div class="panel-head"><h2>Active Orders (KDS)</h2><a href="#">View All</a></div>
+            <div class="orders-row">
+              {% for order in active_orders %}
+                {% if order.status == 'pending' %}
+                  <div class="order-card pending">
+                {% elif order.status == 'preparing' %}
+                  <div class="order-card preparing">
+                {% else %}
+                  <div class="order-card cooking">
+                {% endif %}
+                  <div class="order-number">#{{ order.pk }}</div>
+                  <div class="order-meta"><a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></div>
+                  <div class="order-meta">{{ order.items.count }} items</div>
+                  <span class="order-status">{{ order.get_status_display }}</span>
+                </div>
+              {% empty %}
+                <div class="order-card pending"><div class="order-number">#0</div><div class="order-meta">No active orders</div><div class="order-meta">0 items</div><span class="order-status">Pending</span></div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel transactions-panel">
+            <div class="panel-head"><h2>Recent Transactions</h2><a href="#">View All</a></div>
+            <ul class="transaction-list">
+              {% for payment in recent_payments %}
+                <li>
+                  <div class="transaction-meta"><strong>Order #{{ payment.order.pk }}</strong><span><a href="{% url 'profile' %}" class="customer-link">{{ payment.order.customer_name }}</a></span></div>
+                  <div class="transaction-amount">£ {{ payment.amount|floatformat:0 }}</div>
+                  <span class="transaction-status paid">Paid</span>
+                </li>
+              {% empty %}
+                <li><div class="transaction-meta"><strong>No transactions</strong><span>Waiting for payments</span></div><div class="transaction-amount">£ 0</div><span class="transaction-status paid">Paid</span></li>
+              {% endfor %}
+            </ul>
+          </article>
+        </section>
+      </main>
+  </main>
 {% endblock %}

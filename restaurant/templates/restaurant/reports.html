@@ -9,7 +9,7 @@
   <div class="cards">
     <div class="card">
       <h3>Total Revenue</h3>
-      <div class="value">${{ total_revenue }}</div>
+      <div class="value">£{{ total_revenue }}</div>
     </div>
     <div class="card">
       <h3>Payments</h3>
@@ -31,7 +31,7 @@
           {% for day in daily_sales %}
             <tr>
               <td>{{ day.date }}</td>
-              <td>${{ day.total }}</td>
+              <td>£{{ day.total }}</td>
             </tr>
           {% empty %}
             <tr>
@@ -46,7 +46,7 @@
       <h2>AI Forecast</h2>
       <ul class="summary-list">
         {% for value in forecast %}
-          <li>Forecast day {{ forloop.counter }}: ${{ value }}</li>
+          <li>Forecast day {{ forloop.counter }}: £{{ value }}</li>
         {% empty %}
           <li>No forecast data available.</li>
         {% endfor %}
@@ -68,9 +68,9 @@
       <tbody>
         {% for payment in payments %}
           <tr>
-            <td>{{ payment.order.customer_name }}</td>
+            <td><a href="{% url 'profile' %}" class="customer-link">{{ payment.order.customer_name }}</a></td>
             <td>{{ payment.get_payment_method_display }}</td>
-            <td>${{ payment.amount }}</td>
+            <td>£{{ payment.amount }}</td>
             <td>{{ payment.paid_at|date:'Y-m-d H:i' }}</td>
           </tr>
         {% empty %}

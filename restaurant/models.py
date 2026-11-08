@@ -98,7 +98,7 @@ class MenuItem(models.Model):
         ordering = ["category", "name"]
 
     def __str__(self):
-        return f"{self.name} - ${self.price}"
+        return f"{self.name} - £{self.price}"
 
 
 class RecipeItem(models.Model):
