@@ -1,0 +1,223 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Revenue Forecast{% endblock %}
+
+{% block content %}
+  <div class="light-forecast-page">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
+      <div>
+        <h1 style="margin-bottom: 8px;">Revenue Forecast</h1>
+        <p class="muted">ML-style forecast built from recent revenue trends and weekday seasonality.</p>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <a href="{% url 'reports' %}" class="button-link">Back to Reports</a>
+        <a href="{% url 'export_forecast_csv' %}?end_date={{ selected_end_date|date:'Y-m-d' }}&days={{ forecast_days }}" class="button-link">Export CSV</a>
+        <button type="button" id="download-png" class="button-link">Download PNG</button>
+      </div>
+    </div>
+
+  <form method="get" class="section" style="margin-bottom: 24px;" id="forecast-form">
+    <div class="grid-2" style="gap: 16px; align-items: end;">
+      <div>
+        <label for="start_date">From</label>
+        <input id="start_date" name="start_date" type="date" value="{{ selected_start_date|date:'Y-m-d' }}" />
+      </div>
+      <div>
+        <label for="end_date">To</label>
+        <input id="end_date" name="end_date" type="date" value="{{ selected_end_date|date:'Y-m-d' }}" />
+      </div>
+      <div>
+        <label for="days">Forecast days</label>
+        <input id="days" name="days" type="number" min="1" max="30" value="{{ forecast_days }}" />
+      </div>
+      <div>
+        <button type="submit" class="button-link">Apply</button>
+      </div>
+    </div>
+    <div class="preset-row" style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+      {% for preset in preset_ranges %}
+        <button type="button" class="preset-button {% if preset == forecast_days %}active{% endif %}" data-days="{{ preset }}">{{ preset }} days</button>
+      {% endfor %}
+    </div>
+  </form>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Next {{ forecast_days }} Days</h3>
+      <div class="value">£{{ summary.next_7_day_total }}</div>
+    </div>
+    <div class="card">
+      <h3>Average / Day</h3>
+      <div class="value">£{{ summary.average_daily_revenue }}</div>
+    </div>
+    <div class="card">
+      <h3>Trend</h3>
+      <div class="value">{{ summary.trend_percent }}%</div>
+    </div>
+    <div class="card">
+      <h3>Confidence</h3>
+      <div class="value">{{ summary.confidence_score }}%</div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top: 24px;">
+    <h2>Revenue Trend Graph</h2>
+    <div class="chart-legend" style="display:flex; gap:18px; flex-wrap:wrap; margin-bottom:12px;">
+      <div class="legend-item"><span class="legend-swatch actual"></span>Actual revenue</div>
+      <div class="legend-item"><span class="legend-swatch forecast"></span>Forecast revenue</div>
+    </div>
+    <div style="position: relative; height: 320px;">
+      <canvas id="forecastChart" aria-label="Revenue performance chart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top: 24px; gap: 24px;">
+    <div class="section">
+      <h2>Prediction Accuracy</h2>
+      <ul class="summary-list">
+        <li>MAPE: {{ summary.mape }}%</li>
+        <li>MAE: £{{ summary.mae }}</li>
+        <li>Model: {{ model_name }}</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Forecast Details</h2>
+      <ul class="summary-list">
+        <li>Actual analysis window: {{ selected_start_date }} to {{ selected_end_date }}</li>
+        <li>Forecast horizon: {{ forecast_days }} days</li>
+        <li>Average daily revenue: £{{ summary.average_daily_revenue }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top: 24px;">
+    <h2>Daily Forecast</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Predicted Revenue</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in forecast %}
+          <tr>
+            <td>{{ item.label }}</td>
+            <td>£{{ item.predicted_amount }}</td>
+            <td>{{ item.confidence }}%</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="muted">No forecast data available.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script id="history-data" type="application/json">{{ history_json|safe }}</script>
+  <script id="forecast-data" type="application/json">{{ forecast_json|safe }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    const historyData = JSON.parse(document.getElementById('history-data').textContent || '[]');
+    const forecastData = JSON.parse(document.getElementById('forecast-data').textContent || '[]');
+    const labels = [...historyData.map(item => item.label), ...forecastData.map(item => item.label)];
+    const actualValues = historyData.map(item => Number(item.value));
+    const predictionValues = Array(historyData.length).fill(null).concat(forecastData.map(item => Number(item.value)));
+
+    const ctx = document.getElementById('forecastChart');
+    if (ctx) {
+      window.forecastChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Actual revenue',
+              data: actualValues,
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34, 197, 94, 0.18)',
+              pointBackgroundColor: '#22c55e',
+              pointBorderColor: '#ffffff',
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              tension: 0.3,
+              fill: false,
+            },
+            {
+              label: 'Forecast revenue',
+              data: predictionValues,
+              borderColor: '#d97706',
+              backgroundColor: 'rgba(217, 119, 6, 0.18)',
+              pointBackgroundColor: '#d97706',
+              pointBorderColor: '#ffffff',
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              tension: 0.3,
+              borderDash: [6, 6],
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                label: function(context) {
+                  const value = context.parsed.y ?? 0;
+                  return `${context.dataset.label}: £${Number(value).toFixed(2)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(15, 23, 42, 0.08)' },
+              ticks: { color: '#475569', maxTicksLimit: 10 }
+            },
+            y: {
+              grid: { color: 'rgba(15, 23, 42, 0.08)' },
+              ticks: {
+                color: '#475569',
+                callback: function(value) { return `£${value}`; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    document.querySelectorAll('.preset-button').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const targetDays = Number(button.dataset.days || 7);
+        const endDateInput = document.getElementById('end_date');
+        const startDateInput = document.getElementById('start_date');
+        const daysInput = document.getElementById('days');
+        const endDate = new Date(endDateInput.value || '{{ selected_end_date|date:"Y-m-d" }}');
+        const startDate = new Date(endDate);
+        startDate.setDate(endDate.getDate() - (targetDays - 1));
+
+        startDateInput.value = startDate.toISOString().slice(0, 10);
+        endDateInput.value = endDate.toISOString().slice(0, 10);
+        daysInput.value = String(targetDays);
+        document.getElementById('forecast-form').submit();
+      });
+    });
+
+    document.getElementById('download-png')?.addEventListener('click', function() {
+      if (!window.forecastChart) return;
+      const link = document.createElement('a');
+      link.href = window.forecastChart.toBase64Image();
+      link.download = 'revenue-forecast.png';
+      link.click();
+    });
+  </script>
+  </div>
+{% endblock %}

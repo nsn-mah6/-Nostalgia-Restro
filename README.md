@@ -6,14 +6,14 @@ This project is a Django-based Restaurant Management System for handling:
 - Inventory updates based on recipes
 - Payment processing
 - Sales reporting
-- Simple AI-based future sales prediction
+- AI/ML-style revenue forecasting using recent sales trends and weekday patterns
 
 ## Features
 - Create customer orders with dine-in or takeaway options
 - Update kitchen status: Pending → Preparing → Ready
 - Automatically reduce stock from recipe ingredients when an order is created
 - Accept payment via cash, QR, or card
-- Track sales reports and forecast future demand
+- Track sales reports and forecast future demand with a lightweight ML model
 - Staff login/logout with secure password hashing
 - Password reset flow for staff accounts
 - Personal profile editing and secure password changes

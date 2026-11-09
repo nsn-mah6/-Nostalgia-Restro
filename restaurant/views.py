@@ -1,5 +1,8 @@
+import csv
+import io
+import json
 from collections import defaultdict
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -8,12 +11,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.db.models import F, Q, Sum
 from django.utils import timezone
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import ProfileForm, StaffForm
 from .models import ActivityLog, CustomUser, InventoryItem, MenuItem, Order, OrderItem, Payment
-from .utils import forecast_sales
+from .utils import forecast_sales, get_revenue_forecast
 
 
 def log_activity(user, action, details, request=None, target_model="", target_id=None):
@@ -340,7 +343,9 @@ def reports(request):
     else:
         daily_sales = []
 
-    forecast = forecast_sales(7)
+    forecast_data = get_revenue_forecast(days=7)
+    forecast = forecast_data["forecast"]
+    forecast_summary = forecast_data["summary"]
     return render(
         request,
         "restaurant/reports.html",
@@ -349,8 +354,94 @@ def reports(request):
             "total_revenue": total_revenue,
             "daily_sales": daily_sales,
             "forecast": forecast,
+            "forecast_summary": forecast_summary,
         },
     )
+
+
+@login_required
+@role_required("admin", "manager", "cashier")
+def revenue_forecast(request):
+    today = timezone.now().date()
+    start_date_value = request.GET.get("start_date")
+    end_date_value = request.GET.get("end_date")
+    days_value = request.GET.get("days")
+
+    try:
+        end_date = date.fromisoformat(end_date_value) if end_date_value else today
+    except ValueError:
+        end_date = today
+
+    try:
+        start_date = date.fromisoformat(start_date_value) if start_date_value else end_date - timedelta(days=30)
+    except ValueError:
+        start_date = end_date - timedelta(days=30)
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    try:
+        forecast_days = int(days_value) if days_value else 7
+    except ValueError:
+        forecast_days = 7
+    forecast_days = max(1, min(forecast_days, 30))
+
+    forecast_data = get_revenue_forecast(days=forecast_days, end_date=end_date, history_days=max(30, (end_date - start_date).days + 1))
+    chart_points = forecast_data["chart"]["combined"]
+    history_points = forecast_data["chart"]["history"]
+    forecast_points = forecast_data["chart"]["forecast"]
+    history_payload = [{"label": item["label"], "value": float(item["value"])} for item in forecast_data["history"]]
+    forecast_payload = [{"label": item["label"], "value": float(item["predicted_amount"])} for item in forecast_data["forecast"]]
+
+    return render(
+        request,
+        "restaurant/revenue_forecast.html",
+        {
+            "summary": forecast_data["summary"],
+            "forecast": forecast_data["forecast"],
+            "history": forecast_data["history"],
+            "model_name": forecast_data["model"],
+            "chart_points": chart_points,
+            "history_points": history_points,
+            "forecast_points": forecast_points,
+            "history_json": json.dumps(history_payload),
+            "forecast_json": json.dumps(forecast_payload),
+            "selected_start_date": start_date,
+            "selected_end_date": end_date,
+            "forecast_days": forecast_days,
+            "preset_ranges": [7, 30, 90],
+        },
+    )
+
+
+@login_required
+@role_required("admin", "manager", "cashier")
+def export_forecast_csv(request):
+    today = timezone.now().date()
+    end_date_value = request.GET.get("end_date")
+    days_value = request.GET.get("days")
+
+    try:
+        end_date = date.fromisoformat(end_date_value) if end_date_value else today
+    except ValueError:
+        end_date = today
+
+    try:
+        forecast_days = int(days_value) if days_value else 7
+    except ValueError:
+        forecast_days = 7
+    forecast_days = max(1, min(forecast_days, 30))
+
+    forecast_data = get_revenue_forecast(days=forecast_days, end_date=end_date, history_days=90)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["date", "predicted_amount", "confidence", "model"])
+    for item in forecast_data["forecast"]:
+        writer.writerow([item["date"].isoformat(), item["predicted_amount"], item["confidence"], forecast_data["model"]])
+
+    response = HttpResponse(output.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="revenue_forecast_{end_date.isoformat()}.csv"'
+    return response
 
 
 @login_required

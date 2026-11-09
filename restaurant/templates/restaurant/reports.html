@@ -4,7 +4,7 @@
 
 {% block content %}
   <h1>Sales Reports</h1>
-  <p class="muted">Track revenue performance and AI-based demand forecast.</p>
+  <p class="muted">Track revenue performance, monitor recent payments, and review the AI revenue forecast.</p>
 
   <div class="cards">
     <div class="card">
@@ -15,6 +15,18 @@
       <h3>Payments</h3>
       <div class="value">{{ payments|length }}</div>
     </div>
+    <div class="card">
+      <h3>Forecast Total</h3>
+      <div class="value">£{{ forecast_summary.next_7_day_total }}</div>
+    </div>
+    <div class="card">
+      <h3>Confidence</h3>
+      <div class="value">{{ forecast_summary.confidence_score }}%</div>
+    </div>
+  </div>
+
+  <div class="toolbar-row" style="margin: 24px 0; display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
+    <a href="{% url 'revenue_forecast' %}" class="button-link">Open Revenue Forecast Page</a>
   </div>
 
   <div class="grid-2">
@@ -43,14 +55,22 @@
     </section>
 
     <section class="section">
-      <h2>AI Forecast</h2>
+      <h2>AI Forecast Summary</h2>
       <ul class="summary-list">
-        {% for value in forecast %}
-          <li>Forecast day {{ forloop.counter }}: £{{ value }}</li>
-        {% empty %}
-          <li>No forecast data available.</li>
-        {% endfor %}
+        <li>Average daily forecast: £{{ forecast_summary.average_daily_revenue }}</li>
+        <li>Trend vs previous 2 weeks: {{ forecast_summary.trend_percent }}%</li>
+        <li>Forecast window: {{ forecast|length }} days</li>
       </ul>
+      <div class="mini-list">
+        {% for item in forecast %}
+          <div class="mini-row">
+            <span>{{ item.label }}</span>
+            <strong>£{{ item.predicted_amount }}</strong>
+          </div>
+        {% empty %}
+          <p class="muted">No forecast data available.</p>
+        {% endfor %}
+      </div>
     </section>
   </div>
 
