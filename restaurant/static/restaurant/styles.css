@@ -252,6 +252,10 @@ body::after {
   font-weight: 600;
 }
 
+.page-actions {
+  padding-top: 24px;
+}
+
 .preset-row {
   display: flex;
   gap: 10px;
@@ -450,6 +454,27 @@ p, label, td, th, li, small {
   margin-top: 18px;
 }
 
+.order-menu {
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.menu-category {
+  margin-top: 24px;
+}
+
+.menu-category h3 {
+  margin: 0 0 14px;
+}
+
+.menu-items-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -559,12 +584,12 @@ button.secondary {
 
 .menu-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
-  align-items: center;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  align-content: space-between;
+  gap: 12px;
   padding: 18px;
-  margin-bottom: 12px;
-  min-height: 96px;
+  min-width: 0;
+  min-height: 150px;
 }
 
 .menu-item strong {
@@ -582,8 +607,7 @@ button.secondary {
 
 .menu-item input {
   width: 100%;
-  max-width: 110px;
-  justify-self: end;
+  max-width: 100%;
   text-align: center;
 }
 
@@ -628,16 +652,22 @@ button.secondary {
 .auth-panel {
   max-width: 500px;
   margin: 50px auto;
-  background: rgba(18, 13, 11, 0.7);
-  border: 1px solid rgba(244, 200, 106, 0.25);
+  background-color: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 28px;
   padding: 34px 30px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
 .auth-panel a {
-  color: var(--gold);
+  color: var(--gold-strong);
   text-decoration: none;
+}
+
+.auth-panel .error-box {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: #b91c1c;
 }
 
 @media (max-width: 720px) {
@@ -664,9 +694,19 @@ button.secondary {
     align-items: flex-start;
   }
 
+  .menu-items-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .menu-item input {
     max-width: 100%;
     justify-self: stretch;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1200px) {
+  .menu-items-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1069,6 +1109,14 @@ button.secondary {
 .stat-meta strong {
   color: #2bb573;
   font-weight: 700;
+}
+
+.stat-meta strong.negative {
+  color: #dc2626;
+}
+
+.stat-meta strong.neutral {
+  color: #7d8797;
 }
 
 .analytics-grid {

@@ -2,19 +2,19 @@ import csv
 import io
 import json
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
-from django.db.models import F, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import ProfileForm, StaffForm
+from .forms import InventoryItemForm, ProfileForm, StaffForm
 from .models import ActivityLog, CustomUser, InventoryItem, MenuItem, Order, OrderItem, Payment
 from .utils import forecast_sales, get_revenue_forecast
 
@@ -60,6 +60,71 @@ def role_dashboard_template(role):
         "inventory_staff": "restaurant/dashboard_inventory.html",
     }
     return templates.get(role, "restaurant/dashboard.html")
+
+
+def _dashboard_day_bounds(day):
+    start = timezone.make_aware(datetime.combine(day, time.min))
+    end = timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min))
+    return start, end
+
+
+def _daily_admin_metrics(day):
+    start, end = _dashboard_day_bounds(day)
+    payment_metrics = Payment.objects.filter(paid_at__gte=start, paid_at__lt=end).aggregate(
+        revenue=Sum("amount"),
+        payment_count=Count("pk"),
+    )
+    order_metrics = Order.objects.filter(created_at__gte=start, created_at__lt=end)
+    customer_names = set(
+        order_metrics.exclude(customer_name__in=["", "Walk-in Customer"])
+        .values_list("customer_name", flat=True)
+        .distinct()
+    )
+    previous_customer_names = set()
+    if customer_names:
+        previous_customer_names = set(
+            Order.objects.filter(customer_name__in=customer_names, created_at__lt=start)
+            .values_list("customer_name", flat=True)
+            .distinct()
+        )
+
+    revenue = payment_metrics["revenue"] or Decimal("0")
+    payment_count = payment_metrics["payment_count"]
+    return {
+        "sales": revenue,
+        "orders": order_metrics.count(),
+        "average_order_value": revenue / payment_count if payment_count else Decimal("0"),
+        "new_customers": len(customer_names - previous_customer_names),
+    }
+
+
+def _comparison(current, previous):
+    if previous == 0:
+        if current == 0:
+            return {"label": "→ 0.0%", "trend": "neutral"}
+        return {"label": "↑ New", "trend": "positive"}
+
+    change = (Decimal(current - previous) / Decimal(previous)) * Decimal("100")
+    if change == 0:
+        arrow, trend = "→", "neutral"
+    elif change > 0:
+        arrow, trend = "↑", "positive"
+    else:
+        arrow, trend = "↓", "negative"
+    return {"label": f"{arrow} {abs(change):.1f}%", "trend": trend}
+
+
+def _admin_dashboard_stats():
+    today = timezone.localdate()
+    today_metrics = _daily_admin_metrics(today)
+    yesterday_metrics = _daily_admin_metrics(today - timedelta(days=1))
+    return {
+        key: {
+            "value": str(value),
+            **_comparison(value, yesterday_metrics[key]),
+        }
+        for key, value in today_metrics.items()
+    }
 
 
 @login_required
@@ -155,6 +220,7 @@ def dashboard(request):
                 "recent_payments": recent_payments,
                 "average_order_value": average_order_value,
                 "new_customers": unique_customers,
+                "dashboard_stats": _admin_dashboard_stats(),
                 "search_query": search_query,
             },
         )
@@ -177,9 +243,53 @@ def dashboard(request):
 
 
 @login_required
+def dashboard_stats(request):
+    if request.user.role != "admin":
+        return HttpResponseForbidden("Admin access is required.")
+    return JsonResponse(_admin_dashboard_stats())
+
+
+@login_required
+@role_required("admin", "manager", "cashier")
+def top_selling_items(request):
+    items = (
+        OrderItem.objects.values("menu_item__name")
+        .annotate(total_qty=Sum("quantity"), total_revenue=Sum("subtotal"))
+        .order_by("-total_qty", "menu_item__name")
+    )
+    return render(request, "restaurant/top_selling_items.html", {"items": items})
+
+
+@login_required
+@role_required("admin", "manager", "cashier")
+def all_transactions(request):
+    payments = Payment.objects.select_related("order").order_by("-paid_at")
+    return render(request, "restaurant/all_transactions.html", {"payments": payments})
+
+
+@login_required
+@role_required("admin", "manager", "kitchen_staff")
+def active_orders(request):
+    orders = (
+        Order.objects.filter(status__in=["pending", "preparing", "ready"])
+        .prefetch_related("items__menu_item")
+        .order_by("-created_at")
+    )
+    return render(request, "restaurant/active_orders.html", {"orders": orders})
+
+
+@login_required
 @role_required("admin", "manager", "waiter", "cashier")
 def create_order(request):
-    menu_items = MenuItem.objects.filter(is_available=True).order_by("category", "name")
+    menu_items = list(MenuItem.objects.filter(is_available=True).order_by("category", "name"))
+    menu_sections = [
+        {
+            "label": label,
+            "items": [item for item in menu_items if item.category == category],
+        }
+        for category, label in MenuItem.CATEGORY_CHOICES
+        if any(item.category == category for item in menu_items)
+    ]
     error = None
 
     if request.method == "POST":
@@ -248,7 +358,7 @@ def create_order(request):
     return render(
         request,
         "restaurant/orders.html",
-        {"menu_items": menu_items, "error": error},
+        {"menu_items": menu_items, "menu_sections": menu_sections, "error": error},
     )
 
 
@@ -281,8 +391,19 @@ def kitchen(request):
 @login_required
 @role_required("admin", "manager", "inventory_staff")
 def inventory(request):
+    if request.method == "POST":
+        if request.user.role != "admin":
+            return HttpResponseForbidden("Only admins can add inventory items.")
+        form = InventoryItemForm(request.POST)
+        if form.is_valid():
+            item = form.save()
+            messages.success(request, f"{item.name} was added to inventory.")
+            return redirect("inventory")
+    else:
+        form = InventoryItemForm() if request.user.role == "admin" else None
+
     inventory = InventoryItem.objects.order_by("name")
-    return render(request, "restaurant/inventory.html", {"inventory": inventory})
+    return render(request, "restaurant/inventory.html", {"inventory": inventory, "form": form})
 
 
 @login_required
@@ -327,6 +448,11 @@ def process_payment(request, order_id):
 def reports(request):
     payment_records = Payment.objects.order_by("-paid_at")
     total_revenue = payment_records.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    top_items = (
+        OrderItem.objects.values("menu_item__name")
+        .annotate(total_qty=Sum("quantity"), total_revenue=Sum("subtotal"))
+        .order_by("-total_qty", "menu_item__name")
+    )
 
     if payment_records.exists():
         latest_date = payment_records.first().paid_at.date()
@@ -351,6 +477,7 @@ def reports(request):
         "restaurant/reports.html",
         {
             "payments": payment_records[:10],
+            "top_items": top_items,
             "total_revenue": total_revenue,
             "daily_sales": daily_sales,
             "forecast": forecast,

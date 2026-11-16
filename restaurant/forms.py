@@ -1,7 +1,15 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
+from .models import InventoryItem
+
 User = get_user_model()
+
+
+class InventoryItemForm(forms.ModelForm):
+    class Meta:
+        model = InventoryItem
+        fields = ["name", "stock", "reorder_level", "unit"]
 
 
 class StaffForm(forms.ModelForm):

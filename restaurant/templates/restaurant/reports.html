@@ -74,7 +74,33 @@
     </section>
   </div>
 
-  <div class="section">
+  <div class="section" id="top-selling-items">
+    <h2>Top Selling Items</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Quantity Sold</th>
+          <th>Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_items %}
+          <tr>
+            <td>{{ item.menu_item__name }}</td>
+            <td>{{ item.total_qty }}</td>
+            <td>£{{ item.total_revenue|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="muted">No item sales recorded yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section" id="recent-payments">
     <h2>Recent Payments</h2>
     <table class="table">
       <thead>

@@ -1,0 +1,51 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Active Orders{% endblock %}
+
+{% block content %}
+  <h1>Active Orders</h1>
+  <p class="muted">All orders currently in the kitchen queue.</p>
+
+  <div class="section">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Customer</th>
+          <th>Order Type</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <td>#{{ order.pk }}</td>
+            <td>{{ order.customer_name }}</td>
+            <td>{{ order.get_order_type_display }}</td>
+            <td>
+              {% for item in order.items.all %}
+                {{ item.menu_item.name }} × {{ item.quantity }}{% if not forloop.last %}, {% endif %}
+              {% empty %}
+                No items
+              {% endfor %}
+            </td>
+            <td>£{{ order.total_amount|floatformat:2 }}</td>
+            <td>{{ order.get_status_display }}</td>
+            <td>{{ order.created_at|date:'Y-m-d H:i' }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="muted">There are no active orders.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-actions">
+    <a href="{% url 'dashboard' %}" class="button-link">Back to Dashboard</a>
+  </div>
+{% endblock %}

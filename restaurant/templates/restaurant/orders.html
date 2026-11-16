@@ -30,16 +30,23 @@
       <textarea id="notes" name="notes" rows="3" placeholder="Any notes for kitchen or staff..."></textarea>
     </div>
 
-    <div class="section">
+    <div class="section order-menu">
       <h2>Menu</h2>
-      {% for item in menu_items %}
-        <div class="menu-item">
-          <div>
-            <strong>{{ item.name }}</strong><br />
-            <span class="muted">{{ item.category|title }} • £{{ item.price }}</span><br />
-            <small>{{ item.description }}</small>
+      {% for section in menu_sections %}
+        <div class="menu-category">
+          <h3>{{ section.label }}</h3>
+          <div class="menu-items-grid">
+            {% for item in section.items %}
+              <div class="menu-item">
+                <div>
+                  <strong>{{ item.name }}</strong><br />
+                  <span class="muted">£{{ item.price|floatformat:2 }}</span>
+                  {% if item.description %}<br /><small>{{ item.description }}</small>{% endif %}
+                </div>
+                <input type="number" name="quantity_{{ item.pk }}" min="0" value="0" aria-label="Quantity for {{ item.name }}" />
+              </div>
+            {% endfor %}
           </div>
-          <input type="number" name="quantity_{{ item.pk }}" min="0" value="0" aria-label="Quantity for {{ item.name }}" />
         </div>
       {% empty %}
         <p class="muted">There are no menu items available right now.</p>

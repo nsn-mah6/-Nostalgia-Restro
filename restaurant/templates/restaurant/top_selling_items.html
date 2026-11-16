@@ -1,0 +1,37 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Top Selling Items{% endblock %}
+
+{% block content %}
+  <h1>Top Selling Items</h1>
+  <p class="muted">All menu items ranked by quantity sold.</p>
+
+  <div class="section">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Quantity Sold</th>
+          <th>Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td>{{ item.menu_item__name }}</td>
+            <td>{{ item.total_qty }}</td>
+            <td>£{{ item.total_revenue|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="muted">No item sales recorded yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-actions">
+    <a href="{% url 'dashboard' %}" class="button-link">Back to Dashboard</a>
+  </div>
+{% endblock %}

@@ -5,6 +5,10 @@ from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("dashboard/stats/", views.dashboard_stats, name="dashboard_stats"),
+    path("dashboard/top-selling-items/", views.top_selling_items, name="top_selling_items"),
+    path("dashboard/transactions/", views.all_transactions, name="all_transactions"),
+    path("dashboard/active-orders/", views.active_orders, name="active_orders"),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
     path("password-reset/", auth_views.PasswordResetView.as_view(template_name="registration/password_reset_form.html", email_template_name="registration/password_reset_email.html", success_url="/password-reset/done/"), name="password_reset"),

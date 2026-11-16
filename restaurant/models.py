@@ -82,9 +82,14 @@ class InventoryItem(models.Model):
 
 class MenuItem(models.Model):
     CATEGORY_CHOICES = [
+        ("indian", "Indian Cuisine"),
+        ("nepali", "Nepali Cuisine"),
+        ("british", "British Cuisine"),
+        ("italian", "Italian Cuisine"),
+        ("fast_food", "Fast Food & Starters"),
+        ("dessert", "Desserts"),
         ("starter", "Starter"),
         ("main", "Main Course"),
-        ("dessert", "Dessert"),
         ("beverage", "Beverage"),
     ]
 

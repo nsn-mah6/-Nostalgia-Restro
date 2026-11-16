@@ -26,29 +26,29 @@
 
         <p class="subtitle">Here's what's happening with your restaurant today.</p>
 
-        <section class="stats-grid" aria-label="Sales summary">
+        <section class="stats-grid" aria-label="Sales summary" data-stats-url="{% url 'dashboard_stats' %}">
           <article class="stat-card">
             <div class="card-head"><span>Total Sales</span><span class="mini-badge positive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l6-6 4 4 6-8"/><path d="M18 5h2v2"/></svg></span></div>
-            <div class="stat-number">£ {{ total_revenue|floatformat:0 }}</div>
-            <div class="stat-meta"><span>vs Yesterday</span><strong>↑ 23.5%</strong></div>
+            <div class="stat-number" data-stat-value="sales">£ {{ dashboard_stats.sales.value|floatformat:0 }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong data-stat-change="sales" class="{{ dashboard_stats.sales.trend }}">{{ dashboard_stats.sales.label }}</strong></div>
           </article>
 
           <article class="stat-card">
             <div class="card-head"><span>Orders</span><span class="mini-badge green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7Zm2-2h8l1 3H7l1-3Z"/></svg></span></div>
-            <div class="stat-number">{{ total_orders }}</div>
-            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 18.2%</strong></div>
+            <div class="stat-number" data-stat-value="orders">{{ dashboard_stats.orders.value }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong data-stat-change="orders" class="{{ dashboard_stats.orders.trend }}">{{ dashboard_stats.orders.label }}</strong></div>
           </article>
 
           <article class="stat-card">
             <div class="card-head"><span>Average Order Value</span><span class="mini-badge teal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l1 12H6L7 8Zm3-3h4a2 2 0 0 1 2 2v1H8V7a2 2 0 0 1 2-2Z"/></svg></span></div>
-            <div class="stat-number">£ {{ average_order_value|floatformat:0 }}</div>
-            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 12.4%</strong></div>
+            <div class="stat-number" data-stat-value="average_order_value">£ {{ dashboard_stats.average_order_value.value|floatformat:0 }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong data-stat-change="average_order_value" class="{{ dashboard_stats.average_order_value.trend }}">{{ dashboard_stats.average_order_value.label }}</strong></div>
           </article>
 
           <article class="stat-card">
             <div class="card-head"><span>New Customers</span><span class="mini-badge amber"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-1a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v1M9 9a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"/></svg></span></div>
-            <div class="stat-number">{{ new_customers }}</div>
-            <div class="stat-meta"><span>vs Yesterday</span><strong class="positive">↑ 15.7%</strong></div>
+            <div class="stat-number" data-stat-value="new_customers">{{ dashboard_stats.new_customers.value }}</div>
+            <div class="stat-meta"><span>vs Yesterday</span><strong data-stat-change="new_customers" class="{{ dashboard_stats.new_customers.trend }}">{{ dashboard_stats.new_customers.label }}</strong></div>
           </article>
         </section>
 
@@ -86,7 +86,7 @@
           </article>
 
           <article class="panel top-items-panel">
-            <div class="panel-head"><h2>Top Selling Items</h2><a href="#">View All</a></div>
+            <div class="panel-head"><h2>Top Selling Items</h2><a href="{% url 'top_selling_items' %}">View All</a></div>
             <ul class="top-items">
               {% for item in top_items %}
                 <li>
@@ -105,7 +105,7 @@
 
         <section class="bottom-grid">
           <article class="panel orders-panel">
-            <div class="panel-head"><h2>Active Orders (KDS)</h2><a href="#">View All</a></div>
+            <div class="panel-head"><h2>Active Orders (KDS)</h2><a href="{% url 'active_orders' %}">View All</a></div>
             <div class="orders-row">
               {% for order in active_orders %}
                 {% if order.status == 'pending' %}
@@ -127,7 +127,7 @@
           </article>
 
           <article class="panel transactions-panel">
-            <div class="panel-head"><h2>Recent Transactions</h2><a href="#">View All</a></div>
+            <div class="panel-head"><h2>Recent Transactions</h2><a href="{% url 'all_transactions' %}">View All</a></div>
             <ul class="transaction-list">
               {% for payment in recent_payments %}
                 <li>
@@ -143,4 +143,43 @@
         </section>
       </main>
   </main>
+  <script>
+    (() => {
+      const statsGrid = document.querySelector("[data-stats-url]");
+      if (!statsGrid) return;
+
+      const formatNumber = (value) => Number(value).toLocaleString(undefined, {
+        maximumFractionDigits: 0,
+      });
+
+      const refreshStats = async () => {
+        const response = await fetch(statsGrid.dataset.statsUrl, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(`Dashboard stats request failed (${response.status}).`);
+        }
+
+        const stats = await response.json();
+        Object.entries(stats).forEach(([key, stat]) => {
+          const valueElement = statsGrid.querySelector(`[data-stat-value="${key}"]`);
+          const changeElement = statsGrid.querySelector(`[data-stat-change="${key}"]`);
+          if (!valueElement || !changeElement) return;
+
+          const formattedValue = formatNumber(stat.value);
+          valueElement.textContent = key === "sales" || key === "average_order_value"
+            ? `£ ${formattedValue}`
+            : formattedValue;
+          changeElement.textContent = stat.label;
+          changeElement.classList.remove("positive", "negative", "neutral");
+          changeElement.classList.add(stat.trend);
+        });
+      };
+
+      window.setInterval(() => {
+        refreshStats().catch((error) => console.error("Unable to refresh dashboard stats:", error));
+      }, 30000);
+    })();
+  </script>
 {% endblock %}
