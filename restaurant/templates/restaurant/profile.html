@@ -3,43 +3,92 @@
 {% block title %}Profile{% endblock %}
 
 {% block content %}
-  <h1>My Profile</h1>
+  <div class="profile-page">
+    <header class="profile-heading">
+      <div>
+        <span class="profile-eyebrow">Account settings</span>
+        <h1>My Profile</h1>
+      </div>
+    </header>
 
-  <div class="grid-2">
-    <section class="section">
-      <h2>Update Profile</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="profile_submit" value="1" />
-        {% for field in profile_form %}
-          <div class="field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}
-              <div class="error-box">{{ error }}</div>
-            {% endfor %}
-          </div>
-        {% endfor %}
-        <button type="submit">Save Profile</button>
-      </form>
-    </section>
+    <div class="profile-layout">
+      <aside class="profile-identity-card">
+        <div class="profile-picture-wrap">
+          {% if user.profile_picture %}
+            <img id="profile-preview" src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name|default:user.username }}" />
+          {% else %}
+            <div id="profile-preview" class="profile-picture-fallback">{{ user.username|first|upper|default:'A' }}</div>
+          {% endif %}
+          <span class="profile-status-dot" title="Active"></span>
+        </div>
+        <h2>{{ user.get_full_name|default:user.username }}</h2>
+        <p>{{ user.get_role_display }}</p>
+      </aside>
 
-    <section class="section">
-      <h2>Change Password</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="password_submit" value="1" />
-        {% for field in password_form %}
-          <div class="field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}
-              <div class="error-box">{{ error }}</div>
+      <div class="profile-form-stack">
+        <section class="profile-card profile-details-card">
+          <h2>Update Profile</h2>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="profile_submit" value="1" />
+            {% for field in profile_form %}
+              <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}
+                  <div class="error-box">{{ error }}</div>
+                {% endfor %}
+              </div>
             {% endfor %}
-          </div>
-        {% endfor %}
-        <button type="submit">Update Password</button>
-      </form>
-    </section>
+            <button type="submit" class="profile-save-button">Save Profile</button>
+          </form>
+        </section>
+
+        <section class="profile-card profile-password-card">
+          <h2>Change Password</h2>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="password_submit" value="1" />
+            {% for field in password_form %}
+              <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}
+                  <div class="error-box">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+            <button type="submit" class="profile-save-button">Update Password</button>
+          </form>
+        </section>
+      </div>
+    </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const input = document.querySelector('input[name="profile_picture"]');
+      const preview = document.getElementById("profile-preview");
+      if (!input || !preview) return;
+
+      input.addEventListener("change", function () {
+        const file = input.files && input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          if (preview.tagName === "DIV") {
+            const image = document.createElement("img");
+            image.id = "profile-preview";
+            image.alt = "Profile preview";
+            preview.replaceWith(image);
+            image.src = event.target.result;
+          } else {
+            preview.src = event.target.result;
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+  </script>
 {% endblock %}

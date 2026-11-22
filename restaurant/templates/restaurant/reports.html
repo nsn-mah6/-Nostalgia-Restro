@@ -26,7 +26,7 @@
   </div>
 
   <div class="toolbar-row" style="margin: 24px 0; display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
-    <a href="{% url 'revenue_forecast' %}" class="button-link">Open Revenue Forecast Page</a>
+    <a href="{% url 'revenue_forecast' %}" class="button-link"> Revenue Forecast </a>
   </div>
 
   <div class="grid-2">
@@ -106,6 +106,7 @@
       <thead>
         <tr>
           <th>Customer</th>
+          <th>Table</th>
           <th>Method</th>
           <th>Amount</th>
           <th>Paid At</th>
@@ -115,13 +116,14 @@
         {% for payment in payments %}
           <tr>
             <td><a href="{% url 'profile' %}" class="customer-link">{{ payment.order.customer_name }}</a></td>
+            <td>{% if payment.order.table_number %}{{ payment.order.table_number }}{% else %}-{% endif %}</td>
             <td>{{ payment.get_payment_method_display }}</td>
             <td>£{{ payment.amount }}</td>
             <td>{{ payment.paid_at|date:'Y-m-d H:i' }}</td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="4" class="muted">No payments available.</td>
+            <td colspan="5" class="muted">No payments available.</td>
           </tr>
         {% endfor %}
       </tbody>

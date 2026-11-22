@@ -16,6 +16,7 @@ class CustomUser(AbstractUser):
 
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default="waiter")
     phone_number = models.CharField(max_length=20, blank=True, default="")
+    profile_picture = models.ImageField(upload_to="profile_pictures/", blank=True)
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"
@@ -50,6 +51,10 @@ class ActivityLog(models.Model):
         ("order_created", "Order Created"),
         ("order_updated", "Order Updated"),
         ("payment_processed", "Payment Processed"),
+        ("booking_created", "Booking Created"),
+        ("booking_updated", "Booking Updated"),
+        ("booking_cancelled", "Booking Cancelled"),
+        ("table_updated", "Table Updated"),
     ]
 
     user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="activity_logs")
@@ -128,6 +133,7 @@ class Order(models.Model):
 
     customer_name = models.CharField(max_length=120, default="Walk-in Customer")
     order_type = models.CharField(max_length=20, choices=ORDER_TYPE_CHOICES, default="dine_in")
+    table_number = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -149,6 +155,48 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.menu_item.name}"
+
+
+class RestaurantTable(models.Model):
+    table_number = models.PositiveIntegerField(unique=True)
+    name = models.CharField(max_length=50, blank=True)
+    capacity = models.PositiveIntegerField(default=2)
+    location = models.CharField(max_length=100, blank=True)
+    is_available = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["table_number"]
+
+    def __str__(self):
+        label = self.name or f"Table {self.table_number}"
+        return f"{label} ({self.capacity} seats)"
+
+
+class TableBooking(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("confirmed", "Confirmed"),
+        ("seated", "Seated"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    customer_name = models.CharField(max_length=120)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True)
+    table = models.ForeignKey(RestaurantTable, related_name="bookings", on_delete=models.PROTECT)
+    party_size = models.PositiveIntegerField(default=1)
+    booking_date = models.DateField()
+    booking_time = models.TimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["booking_date", "booking_time", "table__table_number"]
+
+    def __str__(self):
+        return f"{self.customer_name} - Table {self.table.table_number} on {self.booking_date}"
 
 
 class Payment(models.Model):

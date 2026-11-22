@@ -5,7 +5,16 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import CustomUser, InventoryItem, MenuItem, Order, Payment
+from .models import (
+    ActivityLog,
+    CustomUser,
+    InventoryItem,
+    MenuItem,
+    Order,
+    Payment,
+    RestaurantTable,
+    TableBooking,
+)
 
 
 class DashboardStatsTests(TestCase):
@@ -98,6 +107,32 @@ class DashboardStatsTests(TestCase):
         self.assertContains(response, 'class="section order-menu"')
         self.assertContains(response, "£13.95")
 
+    def test_dine_in_order_requires_and_saves_table_number(self):
+        menu_item = MenuItem.objects.filter(is_available=True).first()
+        missing_table = self.client.post(
+            reverse("orders"),
+            {
+                "customer_name": "Table Guest",
+                "order_type": "dine_in",
+                "table_number": "",
+                f"quantity_{menu_item.pk}": 1,
+            },
+        )
+        self.assertContains(missing_table, "Please enter a valid table number")
+
+        response = self.client.post(
+            reverse("orders"),
+            {
+                "customer_name": "Table Guest",
+                "order_type": "dine_in",
+                "table_number": "12",
+                f"quantity_{menu_item.pk}": 1,
+            },
+        )
+        order = Order.objects.get(customer_name="Table Guest")
+        self.assertEqual(order.table_number, 12)
+        self.assertRedirects(response, reverse("payment", args=[order.pk]))
+
     def test_reports_has_targets_for_dashboard_links(self):
         response = self.client.get(reverse("reports"))
 
@@ -132,3 +167,106 @@ class DashboardStatsTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertFalse(InventoryItem.objects.filter(name="Olive Oil").exists())
+
+    def test_booking_page_has_available_table_options_and_no_activity_panel(self):
+        RestaurantTable.objects.create(table_number=21, name="Garden Table", capacity=6)
+        RestaurantTable.objects.create(table_number=22, name="Patio Table", capacity=2, is_available=False)
+
+        response = self.client.get(reverse("bookings"))
+
+        self.assertContains(response, "Select a table")
+        table_queryset = response.context["booking_form"].fields["table"].queryset
+        self.assertTrue(table_queryset.filter(table_number=21).exists())
+        self.assertFalse(table_queryset.filter(table_number=22).exists())
+        self.assertNotContains(response, "Reservation Activity Log")
+
+    def test_table_can_be_deleted_only_without_reservation_history(self):
+        deletable = RestaurantTable.objects.create(table_number=31, capacity=2)
+        response = self.client.post(reverse("table_delete", args=[deletable.pk]))
+        self.assertRedirects(response, reverse("bookings"))
+        self.assertFalse(RestaurantTable.objects.filter(pk=deletable.pk).exists())
+        self.assertTrue(ActivityLog.objects.filter(action="table_updated", details__contains="Deleted table 31").exists())
+
+        protected = RestaurantTable.objects.create(table_number=32, capacity=2)
+        TableBooking.objects.create(
+            customer_name="Reserved Guest",
+            phone="555-0102",
+            table=protected,
+            party_size=2,
+            booking_date=timezone.localdate() + timedelta(days=1),
+            booking_time="18:00",
+        )
+        response = self.client.post(reverse("table_delete", args=[protected.pk]))
+        self.assertRedirects(response, reverse("bookings"))
+        self.assertTrue(RestaurantTable.objects.filter(pk=protected.pk).exists())
+        self.assertContains(self.client.get(reverse("bookings")), "cannot be deleted")
+
+    def test_booking_creation_conflict_update_cancel_and_activity_log(self):
+        table, _ = RestaurantTable.objects.get_or_create(
+            table_number=5,
+            defaults={"name": "Table 5", "capacity": 4},
+        )
+        booking_date = timezone.localdate() + timedelta(days=1)
+
+        create_response = self.client.post(
+            reverse("bookings"),
+            {
+                "create_booking": "1",
+                "booking-customer_name": "Jordan",
+                "booking-phone": "555-0100",
+                "booking-email": "jordan@example.com",
+                "booking-table": table.pk,
+                "booking-party_size": 3,
+                "booking-booking_date": booking_date.isoformat(),
+                "booking-booking_time": "18:30",
+                "booking-status": "confirmed",
+                "booking-notes": "Window seat",
+            },
+        )
+        self.assertRedirects(create_response, reverse("bookings"))
+        booking = TableBooking.objects.get(customer_name="Jordan")
+        self.assertEqual(booking.table, table)
+        self.assertTrue(ActivityLog.objects.filter(action="booking_created", target_id=booking.pk).exists())
+
+        conflict_response = self.client.post(
+            reverse("bookings"),
+            {
+                "create_booking": "1",
+                "booking-customer_name": "Sam",
+                "booking-phone": "555-0101",
+                "booking-email": "",
+                "booking-table": table.pk,
+                "booking-party_size": 2,
+                "booking-booking_date": booking_date.isoformat(),
+                "booking-booking_time": "18:30",
+                "booking-status": "pending",
+                "booking-notes": "",
+            },
+        )
+        self.assertContains(conflict_response, "already has a booking")
+        self.assertFalse(TableBooking.objects.filter(customer_name="Sam").exists())
+
+        update_response = self.client.post(
+            reverse("booking_update", args=[booking.pk]),
+            {
+                "booking-customer_name": "Jordan Lee",
+                "booking-phone": "555-0100",
+                "booking-email": "jordan@example.com",
+                "booking-table": table.pk,
+                "booking-party_size": 4,
+                "booking-booking_date": booking_date.isoformat(),
+                "booking-booking_time": "19:00",
+                "booking-status": "seated",
+                "booking-notes": "Window seat",
+            },
+        )
+        self.assertRedirects(update_response, reverse("bookings"))
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, "seated")
+        self.assertEqual(booking.customer_name, "Jordan Lee")
+
+        cancel_response = self.client.post(reverse("booking_cancel", args=[booking.pk]))
+        self.assertRedirects(cancel_response, reverse("bookings"))
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, "cancelled")
+        self.assertTrue(ActivityLog.objects.filter(action="booking_cancelled", target_id=booking.pk).exists())

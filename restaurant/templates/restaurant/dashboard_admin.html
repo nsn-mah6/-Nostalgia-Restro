@@ -117,6 +117,7 @@
                 {% endif %}
                   <div class="order-number">#{{ order.pk }}</div>
                   <div class="order-meta"><a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></div>
+                  {% if order.table_number %}<div class="order-meta">Table {{ order.table_number }}</div>{% endif %}
                   <div class="order-meta">{{ order.items.count }} items</div>
                   <span class="order-status">{{ order.get_status_display }}</span>
                 </div>

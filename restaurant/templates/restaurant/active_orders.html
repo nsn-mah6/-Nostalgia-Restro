@@ -24,7 +24,10 @@
           <tr>
             <td>#{{ order.pk }}</td>
             <td>{{ order.customer_name }}</td>
-            <td>{{ order.get_order_type_display }}</td>
+            <td>
+              {{ order.get_order_type_display }}
+              {% if order.table_number %}<br /><small>Table {{ order.table_number }}</small>{% endif %}
+            </td>
             <td>
               {% for item in order.items.all %}
                 {{ item.menu_item.name }} × {{ item.quantity }}{% if not forloop.last %}, {% endif %}

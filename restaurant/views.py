@@ -14,8 +14,24 @@ from django.utils import timezone
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import InventoryItemForm, ProfileForm, StaffForm
-from .models import ActivityLog, CustomUser, InventoryItem, MenuItem, Order, OrderItem, Payment
+from .forms import (
+    InventoryItemForm,
+    ProfileForm,
+    RestaurantTableForm,
+    StaffForm,
+    TableBookingForm,
+)
+from .models import (
+    ActivityLog,
+    CustomUser,
+    InventoryItem,
+    MenuItem,
+    Order,
+    OrderItem,
+    Payment,
+    RestaurantTable,
+    TableBooking,
+)
 from .utils import forecast_sales, get_revenue_forecast
 
 
@@ -296,19 +312,30 @@ def create_order(request):
         customer_name = (request.POST.get("customer_name") or "Walk-in Customer").strip() or "Walk-in Customer"
         order_type = request.POST.get("order_type", "dine_in")
         notes = request.POST.get("notes", "")
+        table_number = None
+
+        if order_type == "dine_in":
+            try:
+                table_number = int(request.POST.get("table_number") or 0)
+            except (TypeError, ValueError):
+                table_number = 0
+            if table_number < 1:
+                error = "Please enter a valid table number for dine-in orders."
 
         selected_items = []
-        for menu_item in menu_items:
-            quantity = int(request.POST.get(f"quantity_{menu_item.pk}", 0) or 0)
-            if quantity > 0:
-                selected_items.append((menu_item, quantity))
+        if error is None:
+            for menu_item in menu_items:
+                quantity = int(request.POST.get(f"quantity_{menu_item.pk}", 0) or 0)
+                if quantity > 0:
+                    selected_items.append((menu_item, quantity))
 
-        if not selected_items:
+        if error is None and not selected_items:
             error = "Please select at least one menu item before placing the order."
-        else:
+        elif error is None:
             order = Order.objects.create(
                 customer_name=customer_name,
                 order_type=order_type,
+                table_number=table_number,
                 notes=notes,
             )
 
@@ -348,7 +375,10 @@ def create_order(request):
                 log_activity(
                     request.user,
                     "order_created",
-                    f"Created order #{order.pk} for {order.customer_name}.",
+                    (
+                        f"Created order #{order.pk} for {order.customer_name}"
+                        f"{f' at table {order.table_number}' if order.table_number else ''}."
+                    ),
                     request=request,
                     target_model="Order",
                     target_id=order.pk,
@@ -574,7 +604,7 @@ def export_forecast_csv(request):
 @login_required
 @role_required("admin", "manager", "waiter", "cashier", "kitchen_staff", "inventory_staff")
 def profile_view(request):
-    profile_form = ProfileForm(request.POST or None, instance=request.user)
+    profile_form = ProfileForm(request.POST or None, request.FILES or None, instance=request.user)
     password_form = PasswordChangeForm(request.user, request.POST or None)
     changed = False
 
@@ -614,6 +644,144 @@ def profile_view(request):
         "restaurant/profile.html",
         {"profile_form": profile_form, "password_form": password_form},
     )
+
+@login_required
+@role_required("admin", "manager", "waiter", "cashier")
+def bookings(request):
+    table_form = RestaurantTableForm(request.POST or None, prefix="table")
+    booking_form = TableBookingForm(request.POST or None, prefix="booking")
+    if request.method == "POST" and "create_table" in request.POST:
+        table_form = RestaurantTableForm(request.POST, prefix="table")
+        if table_form.is_valid():
+            table = table_form.save()
+            log_activity(
+                request.user,
+                "table_updated",
+                f"Created table {table.table_number} with capacity {table.capacity}.",
+                request=request,
+                target_model="RestaurantTable",
+                target_id=table.pk,
+            )
+            messages.success(request, "Table was created.")
+            return redirect("bookings")
+    elif request.method == "POST" and "create_booking" in request.POST:
+        booking_form = TableBookingForm(request.POST, prefix="booking")
+        if booking_form.is_valid():
+            booking = booking_form.save()
+            log_activity(
+                request.user,
+                "booking_created",
+                f"Created booking for {booking.customer_name} at table {booking.table.table_number} on {booking.booking_date} at {booking.booking_time}.",
+                request=request,
+                target_model="TableBooking",
+                target_id=booking.pk,
+            )
+            messages.success(request, "Booking was created.")
+            return redirect("bookings")
+
+    selected_date = request.GET.get("date")
+    bookings_qs = TableBooking.objects.select_related("table").order_by("-booking_date", "-booking_time")
+    if selected_date:
+        try:
+            datetime.strptime(selected_date, "%Y-%m-%d")
+            bookings_qs = bookings_qs.filter(booking_date=selected_date)
+        except ValueError:
+            selected_date = ""
+
+    return render(
+        request,
+        "restaurant/bookings.html",
+        {
+            "tables": RestaurantTable.objects.all(),
+            "bookings": bookings_qs,
+            "table_form": table_form,
+            "booking_form": booking_form,
+            "selected_date": selected_date or "",
+        },
+    )
+
+
+@login_required
+@role_required("admin", "manager", "waiter", "cashier")
+def booking_update(request, booking_id):
+    booking = get_object_or_404(TableBooking, pk=booking_id)
+    form = TableBookingForm(request.POST or None, instance=booking, prefix="booking")
+    if request.method == "POST" and form.is_valid():
+        booking = form.save()
+        log_activity(
+            request.user,
+            "booking_updated",
+            f"Updated booking #{booking.pk} for {booking.customer_name}; status is {booking.get_status_display()}.",
+            request=request,
+            target_model="TableBooking",
+            target_id=booking.pk,
+        )
+        messages.success(request, "Booking was updated.")
+        return redirect("bookings")
+    return render(request, "restaurant/booking_form.html", {"form": form, "booking": booking})
+
+
+@login_required
+@role_required("admin", "manager", "waiter", "cashier")
+def booking_cancel(request, booking_id):
+    booking = get_object_or_404(TableBooking, pk=booking_id)
+    if request.method == "POST":
+        booking.status = "cancelled"
+        booking.save(update_fields=["status"])
+        log_activity(
+            request.user,
+            "booking_cancelled",
+            f"Cancelled booking #{booking.pk} for {booking.customer_name}.",
+            request=request,
+            target_model="TableBooking",
+            target_id=booking.pk,
+        )
+        messages.success(request, "Booking was cancelled.")
+    return redirect("bookings")
+
+
+@login_required
+@role_required("admin", "manager")
+def table_toggle_available(request, table_id):
+    table = get_object_or_404(RestaurantTable, pk=table_id)
+    if request.method == "POST":
+        table.is_available = not table.is_available
+        table.save(update_fields=["is_available"])
+        log_activity(
+            request.user,
+            "table_updated",
+            f"{'Made' if table.is_available else 'Marked'} table {table.table_number} {'available' if table.is_available else 'unavailable'}.",
+            request=request,
+            target_model="RestaurantTable",
+            target_id=table.pk,
+        )
+    return redirect("bookings")
+
+
+@login_required
+@role_required("admin", "manager")
+def table_delete(request, table_id):
+    table = get_object_or_404(RestaurantTable, pk=table_id)
+    if request.method == "POST":
+        if table.bookings.exists():
+            messages.error(
+                request,
+                f"Table {table.table_number} cannot be deleted because it has reservation history. Mark it unavailable instead.",
+            )
+        else:
+            table_number = table.table_number
+            table_id = table.pk
+            table.delete()
+            log_activity(
+                request.user,
+                "table_updated",
+                f"Deleted table {table_number}.",
+                request=request,
+                target_model="RestaurantTable",
+                target_id=table_id,
+            )
+            messages.success(request, f"Table {table_number} was deleted.")
+    return redirect("bookings")
 
 
 @login_required

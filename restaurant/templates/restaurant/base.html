@@ -39,6 +39,7 @@
           <nav class="sidebar-nav" aria-label="Sidebar navigation">
             <a class="nav-item {% if request.path == '/' or request.path == '/dashboard/' %}active{% endif %}" href="{% url 'dashboard' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5L12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1v-7.5Z"/></svg></span>Dashboard</a>
             <a class="nav-item {% if request.path == '/orders/' %}active{% endif %}" href="{% url 'orders' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l4 4v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2Zm0 0v4h8V4M8 13h8M8 17h6"/></svg></span>Orders</a>
+            <a class="nav-item {% if request.path == '/bookings/' %}active{% endif %}" href="{% url 'bookings' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Zm3 8h3v3H8z"/></svg></span>Bookings</a>
             <a class="nav-item {% if request.path == '/kitchen/' %}active{% endif %}" href="{% url 'kitchen' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19V8m6 11V5m6 14v-8M3 19h18"/></svg></span>Kitchen</a>
             <a class="nav-item {% if request.path == '/inventory/' %}active{% endif %}" href="{% url 'inventory' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v10H4zm2-4h12v4H6zM8 12h8"/></svg></span>Inventory</a>
             <a class="nav-item {% if request.path == '/reports/' %}active{% endif %}" href="{% url 'reports' %}"><span class="icon-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18V9m7 9V5m7 13v-7M3 18h18"/></svg></span>Reports</a>
@@ -61,7 +62,13 @@
             </form>
 
             <div class="profile-pill">
-              <div class="profile-avatar">{{ user.username|first|upper|default:'A' }}</div>
+              <div class="profile-avatar">
+                {% if user.profile_picture %}
+                  <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name|default:user.username }}" />
+                {% else %}
+                  {{ user.username|first|upper|default:'A' }}
+                {% endif %}
+              </div>
               <div class="profile-copy"><span class="role-label">{{ user.get_full_name|default:user.username }}</span></div>
             </div>
           </header>
@@ -70,7 +77,7 @@
         <main class="{% if user.is_authenticated %}dashboard-body{% else %}container{% endif %}">
           {% if messages %}
             {% for message in messages %}
-              <div class="warning-box">{{ message }}</div>
+              <div class="warning-box message-{{ message.tags|default:'info' }}" role="status">{{ message }}</div>
             {% endfor %}
           {% endif %}
           <div class="page-frame">

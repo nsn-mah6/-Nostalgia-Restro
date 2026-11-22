@@ -1,12 +1,22 @@
 from django.core.management.base import BaseCommand
 
-from restaurant.models import InventoryItem, MenuItem, RecipeItem
+from restaurant.models import InventoryItem, MenuItem, RecipeItem, RestaurantTable
 
 
 class Command(BaseCommand):
     help = "Populate starter menu and inventory data for the restaurant management system"
 
     def handle(self, *args, **options):
+        for table_number in range(1, 11):
+            RestaurantTable.objects.get_or_create(
+                table_number=table_number,
+                defaults={
+                    "name": f"Table {table_number}",
+                    "capacity": 4 if table_number <= 8 else 6,
+                    "location": "Main Dining",
+                    "is_available": True,
+                },
+            )
         inventory = {
             "rice": {"stock": 50, "unit": "kg", "reorder": 20},
             "chicken": {"stock": 40, "unit": "kg", "reorder": 15},

@@ -1,0 +1,131 @@
+{% extends 'restaurant/base.html' %}
+
+{% block title %}Booking Management{% endblock %}
+
+{% block content %}
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+    <div>
+      <h1>Booking Management</h1>
+      <p class="muted">Manage reservations, customer details, tables, availability, and reservation status.</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <section class="section">
+      <h2>New Reservation</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="create_booking" value="1" />
+        {% if booking_form.non_field_errors %}<div class="error-box">{{ booking_form.non_field_errors }}</div>{% endif %}
+        <div class="grid-2">
+          {% for field in booking_form %}
+            <div class="field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="error-box">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+        <button type="submit">Create Booking</button>
+      </form>
+    </section>
+
+    {% if user.role == 'admin' or user.role == 'manager' %}
+      <section class="section">
+        <h2>Table Setup</h2>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="create_table" value="1" />
+          {% if table_form.non_field_errors %}<div class="error-box">{{ table_form.non_field_errors }}</div>{% endif %}
+          <div class="grid-2">
+            {% for field in table_form %}
+              <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="error-box">{{ error }}</div>{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="submit" class="secondary">Add Table</button>
+        </form>
+
+        <h3 style="margin-top:20px;">Tables</h3>
+        {% for table in tables %}
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; border-bottom:1px solid #e2e8f0; padding:10px 0;">
+            <div>
+              <strong>{% if table.name %}{{ table.name }}{% else %}Table {{ table.table_number }}{% endif %}</strong>
+              <div class="muted">{{ table.capacity }} seats{% if table.location %} • {{ table.location }}{% endif %}</div>
+            </div>
+            <div class="inline-buttons">
+              <form method="post" action="{% url 'table_toggle_available' table.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary">
+                  {% if table.is_available %}Mark Unavailable{% else %}Mark Available{% endif %}
+                </button>
+              </form>
+              <form method="post" action="{% url 'table_delete' table.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="secondary" onclick="return confirm('Delete this table? Tables with reservation history cannot be deleted.')">Delete Table</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No tables configured.</p>
+        {% endfor %}
+      </section>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <div style="display:flex; justify-content:space-between; align-items:end; gap:12px; flex-wrap:wrap;">
+      <h2>Reservations</h2>
+      <form method="get" class="inline-buttons">
+        <div class="field" style="margin:0;">
+          <label for="booking-date-filter">Date</label>
+          <input type="date" id="booking-date-filter" name="date" value="{{ selected_date }}" />
+        </div>
+        <button type="submit" class="secondary">Filter</button>
+        {% if selected_date %}<a href="{% url 'bookings' %}"><button type="button" class="secondary">Clear</button></a>{% endif %}
+      </form>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact</th>
+          <th>Table</th>
+          <th>Date & Time</th>
+          <th>Party</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in bookings %}
+          <tr>
+            <td><strong>{{ booking.customer_name }}</strong>{% if booking.notes %}<br /><small class="muted">{{ booking.notes }}</small>{% endif %}</td>
+            <td>{{ booking.phone }}{% if booking.email %}<br /><small>{{ booking.email }}</small>{% endif %}</td>
+            <td>{% if booking.table.name %}{{ booking.table.name }}{% else %}Table {{ booking.table.table_number }}{% endif %}</td>
+            <td>{{ booking.booking_date|date:'Y-m-d' }}<br />{{ booking.booking_time|time:'H:i' }}</td>
+            <td>{{ booking.party_size }}</td>
+            <td><span class="status-badge status-{{ booking.status }}">{{ booking.get_status_display }}</span></td>
+            <td>
+              <div class="inline-buttons">
+                <a href="{% url 'booking_update' booking.pk %}"><button type="button" class="secondary">Update</button></a>
+                {% if booking.status != 'cancelled' %}
+                  <form method="post" action="{% url 'booking_cancel' booking.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary" onclick="return confirm('Cancel this booking?')">Cancel</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="muted">No reservations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endblock %}

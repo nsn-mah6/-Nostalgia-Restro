@@ -34,6 +34,7 @@
             <tr>
               <th>Order</th>
               <th>Customer</th>
+              <th>Table</th>
               <th>Status</th>
               <th>Total</th>
             </tr>
@@ -43,6 +44,7 @@
               <tr>
                 <td>#{{ order.pk }}</td>
                 <td><a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></td>
+                <td>{% if order.table_number %}{{ order.table_number }}{% else %}-{% endif %}</td>
                 <td><span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span></td>
                 <td>£{{ order.total_amount }}</td>
               </tr>

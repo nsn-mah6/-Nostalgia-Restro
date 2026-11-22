@@ -1,6 +1,17 @@
 from django.contrib import admin
 
-from .models import ActivityLog, CustomUser, InventoryItem, MenuItem, Order, OrderItem, Payment, RecipeItem
+from .models import (
+    ActivityLog,
+    CustomUser,
+    InventoryItem,
+    MenuItem,
+    Order,
+    OrderItem,
+    Payment,
+    RecipeItem,
+    RestaurantTable,
+    TableBooking,
+)
 
 admin.site.register(CustomUser)
 admin.site.register(ActivityLog)
@@ -10,3 +21,5 @@ admin.site.register(RecipeItem)
 admin.site.register(Order)
 admin.site.register(OrderItem)
 admin.site.register(Payment)
+admin.site.register(RestaurantTable)
+admin.site.register(TableBooking)

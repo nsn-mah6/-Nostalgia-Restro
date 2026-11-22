@@ -12,6 +12,7 @@
   <div class="section">
     <p><strong>Customer:</strong> <a href="{% url 'profile' %}" class="customer-link">{{ order.customer_name }}</a></p>
     <p><strong>Order Type:</strong> {{ order.get_order_type_display }}</p>
+    {% if order.table_number %}<p><strong>Table Number:</strong> {{ order.table_number }}</p>{% endif %}
     <p><strong>Amount Due:</strong> £{{ order.total_amount }}</p>
 
     <form method="post">
